@@ -60,17 +60,19 @@ void A_output(struct msg message)
 {
     struct pkt *packet = make_pkt(nextseqnum,message);
     sndpkt.push_back(packet);
-    if(base==nextseqnum)
-    {
-      // stoptimer(0);
-      starttimer(0,RTT_Delay);  
-    }
+    
     if(nextseqnum < base + window)
     {
        udt_send(0,getPacket(nextseqnum-1));
      //  starttimer(0,RTT_Delay);
+       if(base==nextseqnum)
+        {
+          // stoptimer(0);
+             starttimer(0,RTT_Delay);  
+             nextseqnum++;
+        }
     }
-    nextseqnum++;
+   
 }
 
 inline void checkRTT(struct pkt packet)
