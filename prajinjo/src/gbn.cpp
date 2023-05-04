@@ -1,15 +1,17 @@
-
- 
-
 #include "../include/simulator.h"
-#include <vector>
-#include <iostream>
+
+#include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
+#include <iostream>
+#include <cstring>
+#include <vector>
+
 using namespace std;
+
 /* ******************************************************************
  ALTERNATING BIT AND GO-BACK-N NETWORK EMULATOR: VERSION 1.1  J.F.Kurose
-   This code should be used for PA2, unidirectional data transfer
+
+   This code should be used for PA2, unidirectional data transfer 
    protocols (from A to B). Network properties:
    - one way network delay averages five time units (longer if there
      are other messages in the channel for GBN), but can be larger
@@ -19,155 +21,153 @@ using namespace std;
      (although some can be lost).
 **********************************************************************/
 
-#define deliver_data( AorB, data) tolayer5(AorB, data)
-#define udt_send( AorB, packet) tolayer3(AorB, packet)
-#define getPacket(x) *(sndpkt[x])
-
 /********* STUDENTS WRITE THE NEXT SEVEN ROUTINES *********/
-static int base;
-static int nextseqnum;
-static float RTT_Delay;
-static int window;
-static int totalJourneyTime;
-static int DelaySameCount;
-static vector<struct pkt *> sndpkt;
-static int cap;
-static int RTTaverage;
-static int count;
-inline int createChecksum(struct pkt packet){
-    char *mssg = packet.payload;
-    int localchecksum = packet.seqnum + packet.acknum;
-    for(int i = 0; i < 20 && mssg[i] != '\0'; i++)
-    {
-        localchecksum += mssg[i];
-    }
-    return localchecksum;
-}
+float TIMEOUT = 25.0;
 
+int seq_number_A; 
+int ack_number_A; 
+int window_size_A;
+int send_base;
+int next_seq_num;
 
-inline struct pkt *make_pkt(int seq, struct msg message)
-{
-    struct pkt *packet = (struct pkt *)malloc(sizeof(struct pkt));
-    (*packet).seqnum = seq;
-    (*packet).acknum = -1;
-    strcpy((*packet).payload,message.data);
-    (*packet).checksum = createChecksum((*packet));
-    return packet;
-}
+int expected_seq_at_B; 
+
+vector <msg> msg_buffer;
+
+void send_data();
+int generate_checksum(pkt packet);
+bool is_pkt_corrupt(pkt packet);
 
 /* called from layer 5, passed the data to be sent to other side */
 void A_output(struct msg message)
 {
-    struct pkt *packet = make_pkt(nextseqnum,message);
-    sndpkt.push_back(packet);
-    
-    if(nextseqnum < base + window)
-    {
-       udt_send(0,getPacket(nextseqnum-1));
-     //  starttimer(0,RTT_Delay);
-       if(base==nextseqnum)
-        {
-          // stoptimer(0);
-             starttimer(0,RTT_Delay);  
-             nextseqnum++;
-        }
-    }
-   
+	//cout<<"*****A output ****** msg to buffer : "<<message.data<<" , adding at : "<<(msg_buffer.size()-1)<<endl ;
+	
+	//Adding the message to a queue
+	msg_buffer.push_back(message);
+	
+	// Starting a sending routine
+	send_data();
 }
 
-inline void checkRTT(struct pkt packet)
-{
-  totalJourneyTime = get_sim_time() - totalJourneyTime;
-  if(DelaySameCount >= 5 && packet.acknum >= base && (packet.acknum - base + 1) * RTT_Delay < totalJourneyTime)
-  {
-      RTT_Delay = totalJourneyTime / (packet.acknum - base + 1);
-      DelaySameCount = 1;
-      cap++;
-  }
+void send_data(){
+	//cout<< "******* udt_send ********* next_seq_num : "<< next_seq_num << " , send_base : "<< send_base<< endl;
+	while(next_seq_num < send_base + window_size_A && next_seq_num<msg_buffer.size()){
+		
+		msg message = msg_buffer[next_seq_num];
+		
+		//cout<<"Sending message : "<<message.data<<", at next_seq_num : "<<next_seq_num<<endl;
+		// Create packet 
+		pkt packet;
+		
+		strncpy(packet.payload,message.data,sizeof(packet.payload)); // Copying message from above to current packet payload
+		packet.seqnum = next_seq_num;
+		packet.acknum = ack_number_A;
+		packet.checksum = 0;
+		
+		packet.checksum = generate_checksum(packet);
+		
+		tolayer3(0, packet);
+		
+		if(send_base == next_seq_num){
+			//cout<<"starting timeout in send data for : "<<next_seq_num<<endl;
+			starttimer(0, TIMEOUT);
+		}
+		
+		next_seq_num++;
+		
+	}
 }
 
 /* called from layer 3, when a packet arrives for layer 4 */
 void A_input(struct pkt packet)
 {
-     if( createChecksum(packet) == packet.checksum && packet.acknum >= base )
-     {
-        int oldbase = base;
-        if( base < packet.acknum + 1)
-        {
-           base = packet.acknum + 1;
-           stoptimer(0);
-        }
-        for(int i = oldbase+window;i<nextseqnum && i<base+window;i++)
-        {
-            udt_send(0,getPacket(i-1));
-        }
-        starttimer(0,RTT_Delay);
-     }
-/*     if( createChecksum(packet) == packet.checksum && packet.acknum == base-1 )
-     {
-        stoptimer(0);
-        A_timerinterrupt();
-     }	*/
+	//cout<< "**********A_input********* base num : "<<send_base<<endl;
+	
+	if(!is_pkt_corrupt(packet)){
+		send_base = packet.acknum +1;
+		
+		if(send_base == next_seq_num)
+			stoptimer(0);
+		else{
+			stoptimer(0);
+			starttimer(0, TIMEOUT);
+		}
+		//cout<< "ack pkt not corrupt at A"<<endl;
+	}
 }
 
 /* called when A's timer goes off */
 void A_timerinterrupt()
 {
-    DelaySameCount++;
-    int win = base + window;
-    for(int i = base; i < win && i < nextseqnum; i++)
-    {
-       udt_send(0,getPacket(i-1));
-    }
-    starttimer(0,RTT_Delay);
-}
-
+	//cout<< "**********A_timerinterrupt********* base num : "<<send_base<<endl;
+	next_seq_num = send_base;
+	send_data();
+}  
 
 /* the following routine will be called once (only) before any other */
 /* entity A routines are called. You can use it to do any initialization */
 void A_init()
 {
-   window = getwinsize();
-   base = 1;
-   nextseqnum = 1;
-   RTT_Delay = 14.0;
-   DelaySameCount = 1;
-   cap = 1;
-   RTTaverage = 0;
-   count = 0;
-
+	seq_number_A = 0; 
+	ack_number_A = 0; 
+	window_size_A = getwinsize();
+	send_base = 0;
+	next_seq_num = 0;
+	
+	//cout<< "**********A_INIT********* Window size at A : "<<window_size_A<<endl;
 }
 
 /* Note that with simplex transfer from a-to-B, there is no B_output() */
-static int B_expectedseqnum;
 
-inline struct pkt *make_ack(int seq){
-    struct pkt *packet = (struct pkt *)malloc(sizeof(struct pkt));
-    packet->acknum = seq;
-    packet->checksum = seq;
-    packet->seqnum = 0;
-    memset(packet->payload,'\0',20);
-    return packet;
-}
 /* called from layer 3, when a packet arrives for layer 4 at B*/
 void B_input(struct pkt packet)
 {
-    if(createChecksum(packet) == packet.checksum && packet.seqnum == B_expectedseqnum){
-       deliver_data(1, packet.payload);
-       struct pkt *B_packet = make_ack(B_expectedseqnum);
-       udt_send(1, *B_packet);
-       B_expectedseqnum++;
-    }
-    else if(createChecksum(packet) == packet.checksum && packet.seqnum < B_expectedseqnum)
-    {
-       struct pkt *B_packet = make_ack(B_expectedseqnum-1);
-       udt_send(1, *B_packet);
-    }
+	//cout<< "**********B_input********* : "<<packet.payload<<", expected seq num : "<<expected_seq_at_B<<", pkt seq number : "<<packet.seqnum<<endl;
+	if(!is_pkt_corrupt(packet) && expected_seq_at_B == packet.seqnum){// add packet corrupttion check
+		//cout<< "**********Sending data to layer 5 of B********* "<<endl;
+		tolayer5(1, packet.payload);
+		
+		pkt recev_ack;
+		
+		recev_ack.acknum = expected_seq_at_B;
+		recev_ack.checksum = 0;
+		
+		recev_ack.checksum = generate_checksum(recev_ack);
+		
+		tolayer3(1, recev_ack);	
+		
+		expected_seq_at_B++;	
+	}
 }
 
 /* the following rouytine will be called once (only) before any other */
 /* entity B routines are called. You can use it to do any initialization */
 void B_init()
 {
-    B_expectedseqnum=1;
+	expected_seq_at_B = 0;
+}
+
+int generate_checksum(pkt packet){
+	int checksum = 0;
+	
+	int seq_number = packet.seqnum;
+	int ack_number = packet.acknum;
+	
+	checksum += seq_number;
+	checksum += ack_number;
+	
+	for(int p=0; p<sizeof(packet.payload); p++)
+		checksum += packet.payload[p];
+	
+	return ~checksum;
+}
+
+bool is_pkt_corrupt(pkt packet){
+	
+	if(packet.checksum == generate_checksum(packet))
+		return false;
+	else
+		return true;
+		
 }
