@@ -5,20 +5,6 @@
 #include <cstring>
 #include <cstdio>   
 
-//The unit of data passed between the upper layers and your protocols is a message, which is declared as:
-struct msg {
-    char data[20];
-};
-
-//The unit of data passed between your routines and the network layer is the packet, which is declared as:
-struct pkt {
-    int seqnum;
-    int acknum;
-    int checksum;
-    char payload[20];
-};
-
-std::queue<pkt> bufferQueue; //buffer
 
 std::vector<struct pkt> packetList;
 int winSize;
@@ -123,7 +109,7 @@ void A_timerinterrupt()
     nextSeqNum = baseSeqNum;
 
     pkt packA= packetList[nextSeqNum];
-    tolayer3(0,packA)
+    tolayer3(0,packA);
 
 }  
 
