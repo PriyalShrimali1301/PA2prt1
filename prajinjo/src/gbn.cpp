@@ -7,6 +7,7 @@
 
 
 std::vector<struct pkt> packetList;
+std::vector<std :: string> messageList ;
 int winSize;
 int baseSeqNum;
 int nextSeqNum;
@@ -64,6 +65,8 @@ int calcChecksum(int seq, int ack, char *message, int n){
 }
 void A_output(struct msg message)
 {
+    int max_seq_num = std::min(baseSeqNum + winSize, static_cast<int>(packetList.size()));
+    while(nextSeqNum < max_seq_num && nextSeqNum < messageList.size()) {
     pkt next_pkt;
     next_pkt.seqnum= nextSeqNum;
     next_pkt.acknum= -1;
@@ -71,11 +74,7 @@ void A_output(struct msg message)
     next_pkt.checksum= calcChecksum(next_pkt.seqnum,next_pkt.acknum, next_pkt.payload, strlen(next_pkt.payload));
 
     packetList.push_back(next_pkt);
-    int max_seq_num = std::min(baseSeqNum + winSize, static_cast<int>(packetList.size()));
-    while(nextSeqNum < max_seq_num && nextSeqNum < packetList.size()) {
-    
-
-        tolayer3(0, next_pkt);
+    tolayer3(0, next_pkt);
 		
 		if(baseSeqNum == nextSeqNum){
 			//cout<<"starting timeout in send data for : "<<next_seq_num<<endl;
@@ -138,8 +137,8 @@ void A_input(pkt packet)
 void A_timerinterrupt()
 {
     int max_seq_num = std::min(baseSeqNum + winSize, static_cast<int>(packetList.size()));
-    pkt packA= packetList[nextSeqNum];
-    tolayer3(0,packA);
+   // pkt packA= packetList[nextSeqNum];
+    //tolayer3(0,packA);
     while(nextSeqNum < max_seq_num && nextSeqNum < packetList.size()) {
     
 
@@ -159,8 +158,8 @@ void A_timerinterrupt()
 void A_init()
 {
     winSize= getwinsize();
-    baseSeqNum=1;
-    nextSeqNum=1;
+    baseSeqNum=0;
+    nextSeqNum=0;
 }
 
 /* Note that with simplex transfer from a-to-B, there is no B_output() */
@@ -185,3 +184,7 @@ void B_input(struct pkt packet)
     }
     
 }
+
+
+
+
