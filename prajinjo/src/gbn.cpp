@@ -5,6 +5,20 @@
 #include <cstring>
 #include <cstdio>   
 
+//The unit of data passed between the upper layers and your protocols is a message, which is declared as:
+struct msg {
+    char data[20];
+};
+
+//The unit of data passed between your routines and the network layer is the packet, which is declared as:
+struct pkt {
+    int seqnum;
+    int acknum;
+    int checksum;
+    char payload[20];
+};
+
+std::queue<pkt> bufferQueue; //buffer
 
 std::vector<struct pkt> packetList;
 int winSize;
@@ -29,6 +43,39 @@ int seqNumB;
 /********* STUDENTS WRITE THE NEXT SEVEN ROUTINES *********/
 
 /* called from layer 5, passed the data to be sent to other side */
+/* the following rouytine will be called once (only) before any other */
+/* entity B routines are called. You can use it to do any initialization */
+void B_init()
+{
+    seqNumB = 0;
+}
+
+bool isValidPackAtB(pkt pack){
+    if(pack.seqnum == seqNumB){
+        return true;
+    }
+    return false;
+}
+
+bool validateChecksum(pkt packet, int checksum){
+
+    if(packet.checksum == checksum){
+        return true;
+    }
+    return false;
+    
+}
+
+
+int calcChecksum(int seq, int ack, char *message){
+    int n = sizeof(message)/sizeof(message[0]);
+    int sum = 0;
+    for(int i =0; i<n; i++){
+        sum+= (int)message[i];
+    }
+    sum += seq + ack;
+    return sum;
+}
 void A_output(struct msg message)
 {
     pkt next_pkt;
@@ -112,38 +159,6 @@ void B_input(struct pkt packet)
     
 }
 
-/* the following rouytine will be called once (only) before any other */
-/* entity B routines are called. You can use it to do any initialization */
-void B_init()
-{
-    seqNumB = 0;
-}
 
-bool isValidPackAtB(pkt pack){
-    if(pack.seqnum == seqNumB){
-        return true;
-    }
-    return false;
-}
-
-bool validateChecksum(pkt packet, int checksum){
-
-    if(packet.checksum == checksum){
-        return true;
-    }
-    return false;
-    
-}
-
-
-int calcChecksum(int seq, int ack, char *message){
-    int n = sizeof(message)/sizeof(message[0]);
-    int sum = 0;
-    for(int i =0; i<n; i++){
-        sum+= (int)message[i];
-    }
-    sum += seq + ack;
-    return sum;
-}
 
 
