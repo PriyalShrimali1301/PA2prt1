@@ -7,7 +7,7 @@
 
 
 std::vector<struct pkt> packetList;
-std::vector<std :: string> messageList ;
+std::vector<struct msg> messageList;
 int winSize;
 int baseSeqNum;
 int nextSeqNum;
@@ -65,6 +65,7 @@ int calcChecksum(int seq, int ack, char *message, int n){
 }
 void A_output(struct msg message)
 {
+    messageList.push_back(message);
     int max_seq_num = std::min(baseSeqNum + winSize, static_cast<int>(packetList.size()));
     while(nextSeqNum < max_seq_num && nextSeqNum < messageList.size()) {
     pkt next_pkt;
@@ -175,9 +176,6 @@ void B_input(struct pkt packet)
         pkt pktAck;
         pktAck.seqnum= seqNumB;
         pktAck.acknum= 0;
-        char ack[] = "Ack Packet"; 
-
-        strcpy(pktAck.payload, ack);
         pktAck.checksum= calcChecksum(pktAck.seqnum,pktAck.acknum, pktAck.payload, strlen(pktAck.payload));
         tolayer3(1, pktAck);
         seqNumB++;
