@@ -66,11 +66,11 @@ int calcChecksum(int seq, int ack, char *message, int n){
 void A_output(struct msg message)
 {
     messageList.push_back(message);
-    int max_seq_num = std::min(baseSeqNum + winSize, static_cast<int>(packetList.size()));
+    int max_seq_num = baseSeqNum + winSize;
     while(nextSeqNum < max_seq_num && nextSeqNum < messageList.size()) {
     pkt next_pkt;
     next_pkt.seqnum= nextSeqNum;
-    next_pkt.acknum= -1;
+    next_pkt.acknum= 0;
     strcpy(next_pkt.payload, message.data);
     next_pkt.checksum= calcChecksum(next_pkt.seqnum,next_pkt.acknum, next_pkt.payload, strlen(next_pkt.payload));
 
@@ -85,19 +85,6 @@ void A_output(struct msg message)
 		nextSeqNum++;
     }
 }
-/*
-
-void sendPackets(){
-    int max_seq_num = std::min(baseSeqNum + winSize, static_cast<int>(packetList.size()));
-    while(nextSeqNum < max_seq_num && nextSeqNum < packetList.size()) {
-        tolayer3(0, packetList[nextSeqNum]);
-        if(baseSeqNum == nextSeqNum){
-            starttimer(0, 20);
-        }
-        nextSeqNum++;
-    }
-}
-*/
 
 
 /* called from layer 3, when a packet arrives for layer 4 */
@@ -116,30 +103,14 @@ void A_input(pkt packet)
     
 }
 
-/*
-
-void A_input(pkt packet)
-{
-    int packChecksum= calcChecksum(packet.seqnum, packet.acknum, packet.payload, strlen(packet.payload));
-    if(packet.checksum == packChecksum && packet.acknum >= baseSeqNum && packet.acknum < nextSeqNum){
-        baseSeqNum = packet.acknum + 1;
-        if(baseSeqNum == nextSeqNum){
-            stoptimer(0);
-        } else {
-            starttimer(0, 20);
-        }
-        sendPackets();
-    }
-}
-
-*/
 
 /* called when A's timer goes off */
 void A_timerinterrupt()
 {
-    int max_seq_num = std::min(baseSeqNum + winSize, static_cast<int>(packetList.size()));
+    int max_seq_num = baseSeqNum + winSize;
    // pkt packA= packetList[nextSeqNum];
     //tolayer3(0,packA);
+    nextSeqNum= baseSeqNum;
     while(nextSeqNum < max_seq_num && nextSeqNum < packetList.size()) {
     
 
@@ -182,7 +153,3 @@ void B_input(struct pkt packet)
     }
     
 }
-
-
-
-
