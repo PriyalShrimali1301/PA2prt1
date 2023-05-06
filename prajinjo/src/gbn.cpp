@@ -79,13 +79,14 @@ bool check_corruption(struct pkt packet, int check_sum){
     return false;
 }
 void create_pkt(){
-	while(nextSeqNum < baseSeqNum + winSize && nextSeqNum<msgCount){
+	while(nextSeqNum < baseSeqNum + winSize && nextSeqNum<packetList.size()){
 	
 		pkt pack;
 		pack.seqnum= nextSeqNum;
 		strcpy(pack.payload, packetList[nextSeqNum].data);
 		pack.acknum= 0;
 		pack.checksum= checksum(pack);
+		tolayer3(0,pack);
 		if(baseSeqNum == nextSeqNum){
 			starttimer(0,20);
 		}
@@ -95,8 +96,9 @@ void create_pkt(){
 }
 /* called from layer 5, passed the data to be sent to other side */
 void A_output(struct msg message){
-	msgCount++;
+	
 	packetList.push_back(message);
+	create_pkt();
 }
 
 /* called from layer 3, when a packet arrives for layer 4 */
