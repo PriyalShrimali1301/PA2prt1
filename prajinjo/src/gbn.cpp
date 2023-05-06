@@ -15,7 +15,7 @@ int winSize;
 int baseSeqNum;
 int nextSeqNum;
 int seqNumB;
-
+int msgCount;
 
 /* ******************************************************************
  ALTERNATING BIT AND GO-BACK-N NETWORK EMULATOR: VERSION 1.1  J.F.Kurose
@@ -77,7 +77,10 @@ bool check_corruption(struct pkt packet, int check_sum){
 
 /* called from layer 5, passed the data to be sent to other side */
 void A_output(struct msg message)
+
 {
+	msgCount++;
+	while(nextSeqNum < baseSeqNum + winSize && nextSeqNum<msgCount){
 	if(nextSeqNum < baseSeqNum + winSize){
 		pkt pack;
 		pack.seqnum= nextSeqNum;
@@ -111,7 +114,7 @@ void A_input(struct pkt packet)
 void A_timerinterrupt()
 {
 	nextSeqNum=baseSeqNum;
-	if(nextSeqNum < baseSeqNum + winSize){
+	while(nextSeqNum < baseSeqNum + winSize && nextSeqNum<msgCount){
 		pkt pack;
 		pack.seqnum= nextSeqNum;
 		strcpy(pack.payload, packetList[nextSeqNum].payload);
@@ -133,6 +136,7 @@ void A_init()
 	winSize= getwinsize();
 	baseSeqNum=1;
 	nextSeqNum=1;
+	msgCount=0;
 }
 
 /* Note that with simplex transfer from a-to-B, there is no B_output() */
