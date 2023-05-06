@@ -99,10 +99,10 @@ void A_input(struct pkt packet)
 	if(check_corruption(packet, checksum(packet))){
 	baseSeqNum= packet.acknum+1;
 	if(baseSeqNum == nextSeqNum){
-		stoptimer();
+		stoptimer(0);
 	}
 	else{
-		starttimer(0,20)
+		starttimer(0,20);
 	}
 	}
 }
@@ -114,7 +114,7 @@ void A_timerinterrupt()
 	if(nextSeqNum < baseSeqNum + winSize){
 		pkt pack;
 		pack.seqnum= nextSeqNum;
-		strcpy(pack.payload, packetList[nextSeqNum].data);
+		strcpy(pack.payload, packetList[nextSeqNum].payload);
 		pack.acknum= 0;
 		pack.checksum= checksum(pack);
 		packetList.push_back(pack);
