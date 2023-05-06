@@ -9,7 +9,7 @@
 #include "../include/simulator.h"
 
 
-std::vector<struct msg> packetList;
+std::vector<struct pkt> packetList;
 
 int winSize;
 int baseSeqNum;
@@ -78,31 +78,52 @@ bool check_corruption(struct pkt packet, int check_sum){
 /* called from layer 5, passed the data to be sent to other side */
 void A_output(struct msg message)
 {
-	packetList.push_back(message);
-	create_packet();
+	if(nextSeqNum < baseSeqNum + winSize){
+		pkt pack;
+		pack.seqnum= nextSeqNum;
+		strcpy(pack.payload, message.data);
+		pack.acknum= 0;
+		pack.checksum= checksum(pack);
+		packetList.push_back(pack);
+
+		if(baseSeqNum == nextSeqNum){
+			starttimer(0,20);
+		}
+		nextSeqNum++;
+	}
 }
 
 /* called from layer 3, when a packet arrives for layer 4 */
 void A_input(struct pkt packet)
 {
-	int packChecksum= checksum(packet);
-    if(check_corruption(packet, packChecksum)){
-        baseSeqNum = packet.acknum + 1;
-		
-		if(baseSeqNum == nextSeqNum)
-			stoptimer(0);
-		else{
-            stoptimer(0);
-			starttimer(0, 20);
-		}
-    }
+	if(check_corruption(packet, checksum(packet))){
+	baseSeqNum= packet.acknum+1;
+	if(baseSeqNum == nextSeqNum){
+		stoptimer();
+	}
+	else{
+		starttimer(0,20)
+	}
+	}
 }
 
 /* called when A's timer goes off */
 void A_timerinterrupt()
 {
-	nextSeqNum= baseSeqNum;
-	create_packet()
+	nextSeqNum=baseSeqNum;
+	if(nextSeqNum < baseSeqNum + winSize){
+		pkt pack;
+		pack.seqnum= nextSeqNum;
+		strcpy(pack.payload, packetList[nextSeqNum].data);
+		pack.acknum= 0;
+		pack.checksum= checksum(pack);
+		packetList.push_back(pack);
+
+		if(baseSeqNum == nextSeqNum){
+			starttimer(0,20);
+		}
+		nextSeqNum++;
+	}
 }  
 
 /* the following routine will be called once (only) before any other */
@@ -110,8 +131,8 @@ void A_timerinterrupt()
 void A_init()
 {
 	winSize= getwinsize();
-	baseSeqNum=0;
-	nextSeqNum=0;
+	baseSeqNum=1;
+	nextSeqNum=1;
 }
 
 /* Note that with simplex transfer from a-to-B, there is no B_output() */
@@ -119,21 +140,15 @@ void A_init()
 /* called from layer 3, when a packet arrives for layer 4 at B*/
 void B_input(struct pkt packet)
 {
-	int checkSumB= checksum(packet);
-	if(check_corruption(packet, checkSumB) && seqNumB == packet.seqnum){// add packet corrupttion check
-		//cout<< "**********Sending data to layer 5 of B********* "<<endl;
+	int check= checksum(packet);
+	if(packet.acknum == seqNumB && check_corruption(packet, check)){
 		tolayer5(1, packet.payload);
-		
-		pkt ackB;
-		
-		ackB.acknum = seqNumB;
-		ackB.checksum = 0;
-		
-		ackB.checksum = checksum(ackB);
-		
-		tolayer3(1, ackB);	
-		
-		seqNumB++;	
+		pkt ackPack;
+		ackPack.seqnum= seqNumB;
+		ackPack.acknum=1;
+		ackPack.checksum= checksum(ackPack);
+		tolayer3(1, ackPack);
+		seqNumB++;
 	}
 }
 
@@ -141,5 +156,5 @@ void B_input(struct pkt packet)
 /* entity B routines are called. You can use it to do any initialization */
 void B_init()
 {
-	seqNumB= 0;
+	seqNumB= 1;
 }
