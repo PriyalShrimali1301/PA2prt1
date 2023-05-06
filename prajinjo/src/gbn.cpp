@@ -9,7 +9,7 @@
 #include "../include/simulator.h"
 
 
-std::vector<struct pkt> packetList;
+std::vector<struct msg> packetList;
 
 int winSize;
 int baseSeqNum;
@@ -42,15 +42,19 @@ int checksum(struct pkt packet){
     sum += packet.seqnum + packet.acknum;
     return sum;
 }
+/*
+
+
+
 
 struct pkt create_packet(){
 	pkt next_pkt;
     next_pkt.seqnum= nextSeqNum;
     next_pkt.acknum= 0;
-    strcpy(next_pkt.payload, packetList[nextSeqNum].data);
+    strcpy(next_pkt.payload, packetList[nextSeqNum].payload);
     next_pkt.checksum= checksum(next_pkt);
 
-    
+    packetList.push_back(next_pkt);
     int max_seq_num = baseSeqNum + winSize;
     while(nextSeqNum < max_seq_num && nextSeqNum < packetList.size()) {
        
@@ -63,7 +67,7 @@ struct pkt create_packet(){
             
         nextSeqNum++;
     }
-}
+}*/
 
 bool check_corruption(struct pkt packet, int check_sum){
 //    printf("cheksum: %d, %d, seq: %d, payload: %s\n", packet.checksum, check_sum, packet.seqnum, packet.payload);
@@ -74,26 +78,25 @@ bool check_corruption(struct pkt packet, int check_sum){
     }
     return false;
 }
-
-/* called from layer 5, passed the data to be sent to other side */
-void A_output(struct msg message)
-
-{
-	msgCount++;
+void create_pkt(){
 	while(nextSeqNum < baseSeqNum + winSize && nextSeqNum<msgCount){
-	if(nextSeqNum < baseSeqNum + winSize){
+	
 		pkt pack;
 		pack.seqnum= nextSeqNum;
-		strcpy(pack.payload, message.data);
+		strcpy(pack.payload, packetList[nextSeqNum].data);
 		pack.acknum= 0;
 		pack.checksum= checksum(pack);
-		packetList.push_back(pack);
-
 		if(baseSeqNum == nextSeqNum){
 			starttimer(0,20);
 		}
 		nextSeqNum++;
-	}
+	
+}
+}
+/* called from layer 5, passed the data to be sent to other side */
+void A_output(struct msg message){
+	msgCount++;
+	packetList.push_back(message);
 }
 
 /* called from layer 3, when a packet arrives for layer 4 */
@@ -114,19 +117,7 @@ void A_input(struct pkt packet)
 void A_timerinterrupt()
 {
 	nextSeqNum=baseSeqNum;
-	while(nextSeqNum < baseSeqNum + winSize && nextSeqNum<msgCount){
-		pkt pack;
-		pack.seqnum= nextSeqNum;
-		strcpy(pack.payload, packetList[nextSeqNum].payload);
-		pack.acknum= 0;
-		pack.checksum= checksum(pack);
-		packetList.push_back(pack);
-
-		if(baseSeqNum == nextSeqNum){
-			starttimer(0,20);
-		}
-		nextSeqNum++;
-	}
+	create_pkt();
 }  
 
 /* the following routine will be called once (only) before any other */
@@ -162,3 +153,6 @@ void B_init()
 {
 	seqNumB= 1;
 }
+
+
+//50, 101,164
