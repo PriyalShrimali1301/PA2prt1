@@ -42,32 +42,9 @@ int checksum(struct pkt packet){
     sum += packet.seqnum + packet.acknum;
     return sum;
 }
-/*
 
 
 
-
-struct pkt create_packet(){
-	pkt next_pkt;
-    next_pkt.seqnum= nextSeqNum;
-    next_pkt.acknum= 0;
-    strcpy(next_pkt.payload, packetList[nextSeqNum].payload);
-    next_pkt.checksum= checksum(next_pkt);
-
-    packetList.push_back(next_pkt);
-    int max_seq_num = baseSeqNum + winSize;
-    while(nextSeqNum < max_seq_num && nextSeqNum < packetList.size()) {
-       
-        tolayer3(0, next_pkt);
-            
-        if(baseSeqNum == nextSeqNum){
-           
-            starttimer(0, 20);
-        }
-            
-        nextSeqNum++;
-    }
-}*/
 
 bool check_corruption(struct pkt packet, int check_sum){
 //    printf("cheksum: %d, %d, seq: %d, payload: %s\n", packet.checksum, check_sum, packet.seqnum, packet.payload);
@@ -127,8 +104,8 @@ void A_timerinterrupt()
 void A_init()
 {
 	winSize= getwinsize();
-	baseSeqNum=1;
-	nextSeqNum=1;
+	baseSeqNum=0;
+	nextSeqNum=0;
 	msgCount=0;
 }
 
@@ -142,7 +119,7 @@ void B_input(struct pkt packet)
 		tolayer5(1, packet.payload);
 		pkt ackPack;
 		ackPack.seqnum= seqNumB;
-		ackPack.acknum=1;
+		ackPack.acknum=seqNumB;
 		ackPack.checksum= checksum(ackPack);
 		tolayer3(1, ackPack);
 		seqNumB++;
@@ -153,7 +130,7 @@ void B_input(struct pkt packet)
 /* entity B routines are called. You can use it to do any initialization */
 void B_init()
 {
-	seqNumB= 1;
+	seqNumB= 0;
 }
 
 
